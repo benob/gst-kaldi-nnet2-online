@@ -88,6 +88,7 @@ enum {
   PROP_LM_FST,
   PROP_BIG_LM_CONST_ARPA,
   PROP_USE_THREADED_DECODER,
+  PROP_NUM_NBEST,
   PROP_LAST
 };
 
@@ -99,6 +100,7 @@ enum {
 #define DEFAULT_CHUNK_LENGTH_IN_SECS  0.05
 #define DEFAULT_TRACEBACK_PERIOD_IN_SECS  0.5
 #define DEAFULT_USE_THREADED_DECODER false
+#define DEFAULT_NUM_NBEST 0
 
 /* the capabilities of the inputs and outputs.
  *
@@ -312,6 +314,18 @@ static void gst_kaldinnet2onlinedecoder_class_init(
           DEAFULT_USE_THREADED_DECODER,
           (GParamFlags) G_PARAM_READWRITE));
 
+
+  g_object_class_install_property(
+      gobject_class,
+      PROP_NUM_NBEST,
+      g_param_spec_uint(
+          "num-nbest", "num-nbest",
+          "size of the nbest-results array (if 0 the signal won't be emitted)",
+          0,
+          10000,
+          DEFAULT_NUM_NBEST,
+          (GParamFlags) G_PARAM_READWRITE));
+
   gst_kaldinnet2onlinedecoder_signals[PARTIAL_RESULT_SIGNAL] = g_signal_new(
       "partial-result", G_TYPE_FROM_CLASS(klass), G_SIGNAL_RUN_LAST,
       G_STRUCT_OFFSET(Gstkaldinnet2onlinedecoderClass, partial_result),
@@ -426,6 +440,7 @@ static void gst_kaldinnet2onlinedecoder_init(
   filter->big_lm_const_arpa_name = g_strdup("");
 
   filter->use_threaded_decoder = false;
+  filter->num_nbest = DEFAULT_NUM_NBEST;
 
   // init properties from various Kaldi Opts
   GstElementClass * klass = GST_ELEMENT_GET_CLASS(filter);
@@ -591,6 +606,9 @@ static void gst_kaldinnet2onlinedecoder_set_property(GObject * object,
         }
       }
       break;
+    case PROP_NUM_NBEST:
+      filter->num_nbest = g_value_get_uint(value);
+      break;
     default:
       if (prop_id >= PROP_LAST) {
         const gchar* name = g_param_spec_get_name(pspec);
@@ -695,6 +713,8 @@ static void gst_kaldinnet2onlinedecoder_get_property(GObject * object,
           g_value_set_string(value, "");
       }
       break;
+    case PROP_NUM_NBEST:
+      g_value_set_uint(value, filter->num_nbest);
     default:
       if (prop_id >= PROP_LAST) {
         const gchar* name = g_param_spec_get_name(pspec);
