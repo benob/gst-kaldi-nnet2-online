@@ -108,6 +108,7 @@ struct _Gstkaldinnet2onlinedecoderClass {
   void (*final_result)(GstElement *element, const gchar *result_str);
   void (*partial_phone_alignment)(GstElement *element, const gchar *result_str);
   void (*final_phone_alignment)(GstElement *element, const gchar *result_str);
+  void (*nbest_results)(GstElement *element, const gchar *result_str);
 };
 
 GType gst_kaldinnet2onlinedecoder_get_type(void);

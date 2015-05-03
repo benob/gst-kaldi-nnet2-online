@@ -68,6 +68,7 @@ enum {
   FINAL_RESULT_SIGNAL,
   PARTIAL_PHONE_ALIGNMENT_SIGNAL,
   FINAL_PHONE_ALIGNMENT_SIGNAL,
+  NBEST_RESULTS_SIGNAL,
   LAST_SIGNAL
 };
 
@@ -353,6 +354,11 @@ static void gst_kaldinnet2onlinedecoder_class_init(
       NULL,
       NULL, kaldi_marshal_VOID__STRING, G_TYPE_NONE, 1,
       G_TYPE_STRING);
+
+  gst_kaldinnet2onlinedecoder_signals[NBEST_RESULTS_SIGNAL] = g_signal_new(
+     "nbest-results", G_TYPE_FROM_CLASS(klass), G_SIGNAL_RUN_LAST,
+     G_STRUCT_OFFSET(Gstkaldinnet2onlinedecoderClass, nbest_results),
+     NULL, NULL, kaldi_marshal_VOID__STRING, G_TYPE_NONE, 1, G_TYPE_STRING);
 
   gst_element_class_set_details_simple(
       gstelement_class, "KaldiNNet2OnlineDecoder", "Speech/Audio",
@@ -905,6 +911,17 @@ static void gst_kaldinnet2onlinedecoder_partial_result(
   }
 }
 
+
+static void gst_kaldinnet2onlinedecoder_nbest_results(
+    Gstkaldinnet2onlinedecoder * filter, CompactLattice &clat)
+{
+
+    g_signal_emit(filter,
+                  gst_kaldinnet2onlinedecoder_signals[PARTIAL_RESULT_SIGNAL], 0,
+                  "TEST");
+
+}
+
 static bool gst_kaldinnet2onlinedecoder_rescore_big_lm(
     Gstkaldinnet2onlinedecoder * filter, CompactLattice &clat, CompactLattice &result_lat) {
 
@@ -1051,6 +1068,8 @@ static void gst_kaldinnet2onlinedecoder_threaded_decode_segment(Gstkaldinnet2onl
       guint num_words = 0;
       gst_kaldinnet2onlinedecoder_final_result(filter, clat, &num_frames,
                                                &tot_like, &num_words);
+      if (filter->num_nbest > 0)
+          gst_kaldinnet2onlinedecoder_nbest_results(filter, clat);
       if (num_words > 0) {
         // Only update adaptation state if the utterance was not empty
         decoder.GetAdaptationState(filter->adaptation_state);
@@ -1125,6 +1144,8 @@ static void gst_kaldinnet2onlinedecoder_unthreaded_decode_segment(Gstkaldinnet2o
     guint num_words = 0;
     gst_kaldinnet2onlinedecoder_final_result(filter, clat, &num_frames,
                                              &tot_like, &num_words);
+    if (filter->num_nbest > 0)
+        gst_kaldinnet2onlinedecoder_nbest_results(filter, clat);
     if (num_words > 0) {
       // Only update adaptation state if the utterance was not empty
       feature_pipeline.GetAdaptationState(filter->adaptation_state);
