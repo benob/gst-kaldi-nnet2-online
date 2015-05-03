@@ -814,15 +814,8 @@ static void gst_kaldinnet2onlinedecoder_phone_alignment(
     }
 }
 
-static void gst_kaldinnet2onlinedecoder_final_result(
-    Gstkaldinnet2onlinedecoder * filter, CompactLattice &clat,
-    int64 *tot_num_frames, double *tot_like, guint *num_words) {
-  if (clat.NumStates() == 0) {
-    KALDI_WARN<< "Empty lattice.";
-    return;
-  }
-  CompactLattice best_path_clat;
-
+static void gst_kaldinnet2onlinedecoder_scale_lattice(
+        Gstkaldinnet2onlinedecoder * filter, CompactLattice &clat) {
   if (filter->inverse_scale) {
     BaseFloat inv_acoustic_scale = 1.0;
     if (filter->use_threaded_decoder) {
@@ -837,6 +830,19 @@ static void gst_kaldinnet2onlinedecoder_final_result(
   }
 
   fst::ScaleLattice(fst::LatticeScale(filter->lmwt_scale, 1.0), &clat);
+}
+
+
+static void gst_kaldinnet2onlinedecoder_final_result(
+    Gstkaldinnet2onlinedecoder * filter, CompactLattice &clat,
+    int64 *tot_num_frames, double *tot_like, guint *num_words) {
+  if (clat.NumStates() == 0) {
+    KALDI_WARN<< "Empty lattice.";
+    return;
+  }
+  CompactLattice best_path_clat;
+
+  gst_kaldinnet2onlinedecoder_scale_lattice(filter, clat);
 
   CompactLatticeShortestPath(clat, &best_path_clat);
 
