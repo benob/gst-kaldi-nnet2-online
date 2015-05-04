@@ -924,12 +924,30 @@ static void gst_kaldinnet2onlinedecoder_partial_result(
 
 
 static void gst_kaldinnet2onlinedecoder_nbest_results(
-    Gstkaldinnet2onlinedecoder * filter, CompactLattice &clat)
-{
+    Gstkaldinnet2onlinedecoder * filter, CompactLattice &clat) {
 
-    g_signal_emit(filter,
-                  gst_kaldinnet2onlinedecoder_signals[PARTIAL_RESULT_SIGNAL], 0,
-                  "TEST");
+  gst_kaldinnet2onlinedecoder_scale_lattice(filter, clat);
+  Lattice lat;
+  ConvertLattice(clat, &lat);
+
+  std::vector<Lattice> nbest_lats; // one lattice per path
+  {
+    Lattice nbest_lat; // one lattice with all best paths, temporary
+    fst::ShortestPath(lat, &nbest_lat, filter->num_nbest);
+    fst::ConvertNbestToVector(nbest_lat, &nbest_lats);
+  }
+
+  GstLatticeResult result;
+  std::stringstream output;
+  for (size_t i=0; i < nbest_lats.size(); i++) {
+    gst_kaldinnet2onlinedecoder_get_lattice_result(filter, nbest_lats[i], &result);
+    if (result.sentence.length() > 0)
+      output << result.sentence << "\n";
+  }
+
+  g_signal_emit(filter,
+      gst_kaldinnet2onlinedecoder_signals[PARTIAL_RESULT_SIGNAL], 0,
+      output.str().c_str());
 
 }
 
