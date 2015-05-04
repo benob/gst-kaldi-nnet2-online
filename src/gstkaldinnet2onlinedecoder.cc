@@ -103,6 +103,18 @@ enum {
 #define DEAFULT_USE_THREADED_DECODER false
 #define DEFAULT_NUM_NBEST 0
 
+
+/* struct object to hold a result of decoding a lattice */
+struct GstLatticeResult {
+
+  std::vector<int32> words;
+  std::vector<int32> alignment;
+  double likelihood;
+  int64 num_frames;
+  std::string sentence;
+
+};
+
 /* the capabilities of the inputs and outputs.
  *
  */
@@ -833,6 +845,29 @@ static void gst_kaldinnet2onlinedecoder_scale_lattice(
 }
 
 
+static void gst_kaldinnet2onlinedecoder_get_lattice_result(
+    Gstkaldinnet2onlinedecoder *filter, const Lattice &lattice,
+    GstLatticeResult *result) {
+
+  LatticeWeight weight;
+  std::stringstream sentence;
+
+  GetLinearSymbolSequence(lattice, &(result->alignment), &(result->words), &weight);
+  result->num_frames = result->alignment.size();
+  result->likelihood = -(weight.Value1() + weight.Value2());
+  for (size_t i = 0; i < result->words.size(); i++) {
+    std::string s = filter->word_syms->Find(result->words[i]);
+    if (s == "")
+      GST_ERROR_OBJECT(filter, "Word-id %d not in symbol table.", result->words[i]);
+    if (i > 0) {
+      sentence << " ";
+    }
+    sentence << s;
+  }
+  result->sentence = sentence.str();
+}
+
+
 static void gst_kaldinnet2onlinedecoder_final_result(
     Gstkaldinnet2onlinedecoder * filter, CompactLattice &clat,
     int64 *tot_num_frames, double *tot_like, guint *num_words) {
@@ -849,71 +884,41 @@ static void gst_kaldinnet2onlinedecoder_final_result(
   Lattice best_path_lat;
   ConvertLattice(best_path_clat, &best_path_lat);
 
-  double likelihood;
-  LatticeWeight weight;
-  int32 num_frames;
-  std::vector<int32> alignment;
-  std::vector<int32> words;
-  GetLinearSymbolSequence(best_path_lat, &alignment, &words, &weight);
-  num_frames = alignment.size();
-  likelihood = -(weight.Value1() + weight.Value2());
-  *tot_num_frames += num_frames;
-  *tot_like += likelihood;
-  GST_DEBUG_OBJECT(filter, "Likelihood per frame for is %f over %d frames",
-      (likelihood / num_frames), num_frames);
+  GstLatticeResult result;
+  gst_kaldinnet2onlinedecoder_get_lattice_result(filter, best_path_lat, &result);
+  *tot_num_frames += result.num_frames;
+  *tot_like += result.likelihood;
+  GST_DEBUG_OBJECT(filter, "Likelihood per frame for is %f over %ld frames",
+      (result.likelihood / result.num_frames), result.num_frames);
+  GST_DEBUG_OBJECT(filter, "Final: %s", result.sentence.c_str());
 
-  std::stringstream sentence;
-  for (size_t i = 0; i < words.size(); i++) {
-    std::string s = filter->word_syms->Find(words[i]);
-    if (s == "")
-    GST_ERROR_OBJECT(filter, "Word-id %d not in symbol table.", words[i]);
-    if (i > 0) {
-      sentence << " ";
-    }
-    sentence << s;
-  }
-  GST_DEBUG_OBJECT(filter, "Final: %s", sentence.str().c_str());
-
-  guint hyp_length = sentence.str().length();
+  guint hyp_length = result.sentence.length();
   *num_words = hyp_length;
   if (hyp_length > 0) {
-    gst_kaldinnet2onlinedecoder_phone_alignment(filter, alignment, true);
+    gst_kaldinnet2onlinedecoder_phone_alignment(filter, result.alignment, true);
 
     GstBuffer *buffer = gst_buffer_new_and_alloc(hyp_length + 1);
-    gst_buffer_fill(buffer, 0, sentence.str().c_str(), hyp_length);
+    gst_buffer_fill(buffer, 0, result.sentence.c_str(), hyp_length);
     gst_buffer_memset(buffer, hyp_length, '\n', 1);
     gst_pad_push(filter->srcpad, buffer);
 
     /* Emit a signal for applications. */
-    g_signal_emit(filter, gst_kaldinnet2onlinedecoder_signals[FINAL_RESULT_SIGNAL], 0, sentence.str().c_str());
+    g_signal_emit(filter, gst_kaldinnet2onlinedecoder_signals[FINAL_RESULT_SIGNAL], 0, result.sentence.c_str());
   }
 }
 
 static void gst_kaldinnet2onlinedecoder_partial_result(
     Gstkaldinnet2onlinedecoder * filter, const Lattice lat) {
-  LatticeWeight weight;
-  std::vector<int32> alignment;
-  std::vector<int32> words;
-  GetLinearSymbolSequence(lat, &alignment, &words, &weight);
-
-  std::stringstream sentence;
-  for (size_t i = 0; i < words.size(); i++) {
-    std::string s = filter->word_syms->Find(words[i]);
-    if (s == "")
-      GST_ERROR_OBJECT(filter, "Word-id %d  not in symbol table.", words[i]);
-    if (i > 0) {
-      sentence << " ";
-    }
-    sentence << s;
-  }
-  GST_DEBUG_OBJECT(filter, "Partial: %s", sentence.str().c_str());
-  if (sentence.str().length() > 0) {
-    gst_kaldinnet2onlinedecoder_phone_alignment(filter, alignment, false);
+  GstLatticeResult result;
+  gst_kaldinnet2onlinedecoder_get_lattice_result(filter, lat, &result);
+  GST_DEBUG_OBJECT(filter, "Partial: %s", result.sentence.c_str());
+  if (result.sentence.length() > 0) {
+    gst_kaldinnet2onlinedecoder_phone_alignment(filter, result.alignment, false);
 
     /* Emit a signal for applications. */
     g_signal_emit(filter,
                   gst_kaldinnet2onlinedecoder_signals[PARTIAL_RESULT_SIGNAL], 0,
-                  sentence.str().c_str());
+                  result.sentence.c_str());
   }
 }
 
