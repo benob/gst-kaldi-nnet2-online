@@ -946,7 +946,7 @@ static void gst_kaldinnet2onlinedecoder_nbest_results(
   }
 
   g_signal_emit(filter,
-      gst_kaldinnet2onlinedecoder_signals[PARTIAL_RESULT_SIGNAL], 0,
+      gst_kaldinnet2onlinedecoder_signals[NBEST_RESULTS_SIGNAL], 0,
       output.str().c_str());
 
 }
