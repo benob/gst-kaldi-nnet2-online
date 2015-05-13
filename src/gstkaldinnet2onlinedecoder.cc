@@ -47,6 +47,7 @@
 
 #include "./kaldimarshal.h"
 #include "./gstkaldinnet2onlinedecoder.h"
+#include "./kaldi-result.h"
 
 #include "fstext/fstext-lib.h"
 #include "lat/confidence.h"
@@ -55,6 +56,7 @@
 
 #include <fstream>
 #include <iostream>
+#include <list>
 
 
 namespace kaldi {
@@ -939,10 +941,14 @@ static void gst_kaldinnet2onlinedecoder_nbest_results(
 
   GstLatticeResult result;
   std::stringstream output;
+  KaldiResult nbest_out;
+  nbest_out.texts = new std::list<std::string>();
   for (size_t i=0; i < nbest_lats.size(); i++) {
     gst_kaldinnet2onlinedecoder_get_lattice_result(filter, nbest_lats[i], &result);
-    if (result.sentence.length() > 0)
+    if (result.sentence.length() > 0) {
       output << result.sentence << "\n";
+      nbest_out.texts->push_back(std::string(result.sentence));
+    }
   }
 
   g_signal_emit(filter,

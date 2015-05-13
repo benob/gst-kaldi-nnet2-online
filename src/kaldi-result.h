@@ -23,6 +23,8 @@
 
 #include <glib-object.h>
 
+namespace kaldi {
+
 #define KALDI_TYPE_RESULT                  (kaldi_result_get_type ())
 #define KALDI_RESULT(obj)                  (G_TYPE_CHECK_INSTANCE_CAST ((obj), KALDI_TYPE_RESULT, KaldiResult))
 #define KALDI_IS_RESULT(obj)               (G_TYPE_CHECK_INSTANCE_TYPE ((obj), KALDI_TYPE_RESULT))
@@ -33,13 +35,14 @@
 typedef struct _KaldiResult        KaldiResult;
 typedef struct _KaldiResultClass   KaldiResultClass;
 
+
 struct _KaldiResult
 {
     /* Parent instance structure */
     GObject parent_instance;
 
     /* instance members */
-    gchar *text;
+    std::list<std::string> *texts;
 };
 
 struct _KaldiResultClass
@@ -50,5 +53,7 @@ struct _KaldiResultClass
 
 /* used by KALDI_TYPE_RESULT */
 GType kaldi_result_get_type (void);
+
+} // namespace kaldi
 
 #endif /* __KALDI_RESULT_H__ */
