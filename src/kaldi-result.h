@@ -42,7 +42,7 @@ struct _KaldiResult
     GObject parent_instance;
 
     /* instance members */
-    std::list<std::string> *texts;
+    GArray *texts;
 };
 
 struct _KaldiResultClass

@@ -372,7 +372,7 @@ static void gst_kaldinnet2onlinedecoder_class_init(
   gst_kaldinnet2onlinedecoder_signals[NBEST_RESULTS_SIGNAL] = g_signal_new(
      "nbest-results", G_TYPE_FROM_CLASS(klass), G_SIGNAL_RUN_LAST,
      G_STRUCT_OFFSET(Gstkaldinnet2onlinedecoderClass, nbest_results),
-     NULL, NULL, kaldi_marshal_VOID__STRING, G_TYPE_NONE, 1, G_TYPE_STRING);
+     NULL, NULL, g_cclosure_marshal_VOID__OBJECT, G_TYPE_NONE, 1, G_TYPE_OBJECT);
 
   gst_element_class_set_details_simple(
       gstelement_class, "KaldiNNet2OnlineDecoder", "Speech/Audio",
@@ -940,20 +940,18 @@ static void gst_kaldinnet2onlinedecoder_nbest_results(
   }
 
   GstLatticeResult result;
-  std::stringstream output;
-  KaldiResult nbest_out;
-  nbest_out.texts = new std::list<std::string>();
+  KaldiResult *nbest_out = (KaldiResult *) g_object_new(KALDI_TYPE_RESULT, NULL);
   for (size_t i=0; i < nbest_lats.size(); i++) {
     gst_kaldinnet2onlinedecoder_get_lattice_result(filter, nbest_lats[i], &result);
     if (result.sentence.length() > 0) {
-      output << result.sentence << "\n";
-      nbest_out.texts->push_back(std::string(result.sentence));
+      GValue *s = (GValue *)g_object_new(G_TYPE_STRING, NULL);
+      g_value_set_string(s, result.sentence.c_str());
+      g_array_append_val(nbest_out->texts, s);
     }
   }
 
   g_signal_emit(filter,
-      gst_kaldinnet2onlinedecoder_signals[NBEST_RESULTS_SIGNAL], 0,
-      output.str().c_str());
+      gst_kaldinnet2onlinedecoder_signals[NBEST_RESULTS_SIGNAL], 0, nbest_out);
 
 }
 

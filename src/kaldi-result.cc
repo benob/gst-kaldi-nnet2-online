@@ -17,9 +17,6 @@
 // See the Apache 2 License for the specific language governing permissions and
 // limitations under the License.
 
-#include <list>
-#include <string>
-
 #include "./kaldi-result.h"
 
 namespace kaldi {
@@ -38,39 +35,22 @@ enum {
   N_PROPERTIES,
 };
 
-static void
-kaldi_result_class_init (KaldiResultClass *klass) {
-  GObjectClass *gobject_class = G_OBJECT_CLASS(klass);
-  gobject_class->finalize = kaldi_result_finalize;
-}
-
-static void
-kaldi_result_init (KaldiResult *self) {
-  self->texts = NULL;
-}
-
-static void
-kaldi_result_finalize (GObject *gobject) {
-  KaldiResult *self = KALDI_RESULT(gobject);
-  g_free(self->texts);
-  G_OBJECT_CLASS(kaldi_result_parent_class)->finalize(gobject);
-}
-
 /* Keep a pointer to the properties definition */
 static GParamSpec *obj_properties[N_PROPERTIES] = { NULL, };
 
 static void
-result_class_init (KaldiResultClass *klass)
-{
-  GObjectClass *gobject_class = G_OBJECT_CLASS (klass);
+kaldi_result_class_init (KaldiResultClass *klass) {
+  GObjectClass *gobject_class = G_OBJECT_CLASS(klass);
 
-  // gobject_class->set_property = kaldi_result_set_property;
-  // gobject_class->get_property = kaldi_result_get_property;
+  gobject_class->finalize = kaldi_result_finalize;
+  gobject_class->set_property = kaldi_result_set_property;
+  gobject_class->get_property = kaldi_result_get_property;
 
   obj_properties[PROP_TEXTS] =
-    g_param_spec_pointer ("texts",
+    g_param_spec_object ("texts",
         "text-results",
         "The texts Kaldi had emitted as an output, sorted by probability",
+        G_TYPE_ARRAY,
         G_PARAM_READWRITE);
 
   g_object_class_install_properties (gobject_class,
@@ -78,42 +58,73 @@ result_class_init (KaldiResultClass *klass)
       obj_properties);
 }
 
+static void
+kaldi_result_init (KaldiResult *self) {
+  self->texts = g_array_new(FALSE, FALSE, sizeof(G_TYPE_STRING));
+}
+
+static void
+kaldi_result_finalize (GObject *gobject) {
+  KaldiResult *self = KALDI_RESULT(gobject);
+  g_array_free(self->texts, TRUE);
+  G_OBJECT_CLASS(kaldi_result_parent_class)->finalize(gobject);
+}
 
 // static void
-// kaldi_result_set_property (GObject *object, guint property_id,
-//     const GValue *value, GParamSpec *pspec)
+// result_class_init (KaldiResultClass *klass)
 // {
-//   KaldiResult *self = KALDI_RESULT(object);
+//   GObjectClass *gobject_class = G_OBJECT_CLASS (klass);
 //
-//   switch (property_id)
-//   {
-//     case PROP_TEXTS:
-//       g_free(self->texts);
-//       self->texts = g_value_dup_string(value);
-//       break;
-//     default:
-//       #<{(| We don't have any other property... |)}>#
-//       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
-//       break;
-//   }
+//   gobject_class->set_property = kaldi_result_set_property;
+//   gobject_class->get_property = kaldi_result_get_property;
+//
+//   obj_properties[PROP_TEXTS] =
+//     g_param_spec_pointer ("texts",
+//         "text-results",
+//         "The texts Kaldi had emitted as an output, sorted by probability",
+//         G_PARAM_READWRITE);
+//
+//   g_object_class_install_properties (gobject_class,
+//       N_PROPERTIES,
+//       obj_properties);
 // }
-//
-// static void
-// kaldi_result_get_property (GObject *object, guint property_id,
-//     GValue *value, GParamSpec *pspec)
-// {
-//   KaldiResult *self = KALDI_RESULT(object);
-//
-//   switch (property_id)
-//   {
-//     case PROP_TEXTS:
-//       g_value_set_string(value, self->texts);
-//       break;
-//     default:
-//       #<{(| We don't have any other property... |)}>#
-//       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
-//       break;
-//   }
-// }
+
+
+static void
+kaldi_result_set_property (GObject *object, guint property_id,
+    const GValue *value, GParamSpec *pspec)
+{
+  KaldiResult *self = KALDI_RESULT(object);
+
+  switch (property_id)
+  {
+    case PROP_TEXTS:
+      g_array_free(self->texts, TRUE);
+      self->texts =(GArray*) g_value_get_object(value);
+      break;
+    default:
+      /* We don't have any other property... */
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
+      break;
+  }
+}
+
+static void
+kaldi_result_get_property (GObject *object, guint property_id,
+    GValue *value, GParamSpec *pspec)
+{
+  KaldiResult *self = KALDI_RESULT(object);
+
+  switch (property_id)
+  {
+    case PROP_TEXTS:
+      g_value_set_object(value, self->texts);
+      break;
+    default:
+      /* We don't have any other property... */
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, property_id, pspec);
+      break;
+  }
+}
 
 } // namespace kaldi
